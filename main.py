@@ -2,6 +2,7 @@ import pygame
 import sys
 import random
 import math
+import time
 
 
 pygame.init()
@@ -13,11 +14,15 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 
 
 player_img = pygame.image.load("data/player.png")
+player_img = pygame.transform.scale(player_img, (player_img.get_width() * 1.3, player_img.get_height() *1.3 ))
+
+
 player_size = player_img.get_rect().size
 player_width = player_size[0]
 player_height = player_size[1]
 
 zombie_img = pygame.image.load("data/zombie.png")
+zombie_img = pygame.transform.scale(zombie_img, (zombie_img.get_width() * 1.3, zombie_img.get_height() *1.3 ))
 zombie_size = zombie_img.get_rect().size
 zombie_width = zombie_size[0]
 zombie_height = zombie_size[1]
@@ -35,7 +40,19 @@ bullets = []
 zombie_speed = 1
 zombies = []
 
+
 BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+
+
+font = pygame.font.Font(None, 36)
+
+
+score = 0
+
+
+last_shot_time = 0
+shoot_delay = 0.5  
 
 def create_zombie():
     x_pos = random.choice([0, screen_width - zombie_width])
@@ -51,7 +68,7 @@ def draw_player(screen, player_pos):
 
 def draw_bullets(screen, bullets):
     for bullet in bullets:
-        pygame.draw.circle(screen, (255, 0, 0), (int(bullet[0][0]), int(bullet[0][1])), bullet_size)
+        pygame.draw.circle(screen, RED, (int(bullet[0][0]), int(bullet[0][1])), bullet_size)
 
 def draw_zombies(screen, zombies):
     for zombie in zombies:
@@ -66,6 +83,7 @@ def move_zombies(zombies, player_pos):
         zombie[1] += direction[1] * zombie_speed
 
 def check_collision(bullets, zombies):
+    global score
     for bullet in bullets:
         bullet_pos = bullet[0]
         for zombie in zombies:
@@ -73,7 +91,12 @@ def check_collision(bullets, zombies):
                 zombie[1] < bullet_pos[1] < zombie[1] + zombie_height):
                 bullets.remove(bullet)
                 zombies.remove(zombie)
+                score += 1
                 return True
+
+def draw_score(screen, score):
+    score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+    screen.blit(score_text, (10, 10))
 
 running = True
 clock = pygame.time.Clock()
@@ -86,12 +109,15 @@ while running:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1: 
-                mouse_pos = pygame.mouse.get_pos()
-                bullet_pos = [player_pos[0] + player_width // 2, player_pos[1] + player_height // 2]
-                bullet_direction = (mouse_pos[0] - bullet_pos[0], mouse_pos[1] - bullet_pos[1])
-                bullet_length = math.hypot(*bullet_direction)
-                bullet_direction = (bullet_direction[0] / bullet_length, bullet_direction[1] / bullet_length)
-                bullets.append([bullet_pos, bullet_direction])
+                current_time = time.time()
+                if current_time - last_shot_time >= shoot_delay:
+                    mouse_pos = pygame.mouse.get_pos()
+                    bullet_pos = [player_pos[0] + player_width // 2, player_pos[1] + player_height // 2]
+                    bullet_direction = (mouse_pos[0] - bullet_pos[0], mouse_pos[1] - bullet_pos[1])
+                    bullet_length = math.hypot(*bullet_direction)
+                    bullet_direction = (bullet_direction[0] / bullet_length, bullet_direction[1] / bullet_length)
+                    bullets.append([bullet_pos, bullet_direction])
+                    last_shot_time = current_time
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_a]:
@@ -103,16 +129,26 @@ while running:
     if keys[pygame.K_s]:
         player_pos[1] += player_speed
 
-
     for bullet in bullets[:]:
         bullet[0][0] += bullet[1][0] * bullet_speed
         bullet[0][1] += bullet[1][1] * bullet_speed
         if bullet[0][0] < 0 or bullet[0][0] > screen_width or bullet[0][1] < 0 or bullet[0][1] > screen_height:
             bullets.remove(bullet)
 
-    if random.randint(1, 50) == 1:
-        create_zombie()
-
+    if score <= 10:
+        if random.randint(1,50) == 1:
+            create_zombie()
+    elif score > 10 and score <= 20:
+        if random.randint(1,30) == 1:
+            create_zombie()
+    elif score > 20 and score <= 30:
+        if random.randint(1,20) == 1:
+            create_zombie()
+    elif score > 30:
+        if random.randint(1,10) == 1:
+            create_zombie()
+    
+    
     move_zombies(zombies, player_pos)
 
     check_collision(bullets, zombies)
@@ -120,6 +156,7 @@ while running:
     draw_player(screen, player_pos)
     draw_bullets(screen, bullets)
     draw_zombies(screen, zombies)
+    draw_score(screen, score)
 
     pygame.display.flip()
     clock.tick(30)
