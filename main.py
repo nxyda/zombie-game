@@ -4,55 +4,50 @@ import random
 import math
 import time
 
-
 pygame.init()
-
 
 screen_width = 800
 screen_height = 600
 screen = pygame.display.set_mode((screen_width, screen_height))
 
-
 player_img = pygame.image.load("data/player.png")
-player_img = pygame.transform.scale(player_img, (player_img.get_width() * 1.3, player_img.get_height() *1.3 ))
-
+player_img = pygame.transform.scale(player_img, (int(player_img.get_width() * 1.3), int(player_img.get_height() * 1.3)))
 
 player_size = player_img.get_rect().size
 player_width = player_size[0]
 player_height = player_size[1]
 
 zombie_img = pygame.image.load("data/zombie.png")
-zombie_img = pygame.transform.scale(zombie_img, (zombie_img.get_width() * 1.3, zombie_img.get_height() *1.3 ))
+zombie_img = pygame.transform.scale(zombie_img, (int(zombie_img.get_width() * 1.3), int(zombie_img.get_height() * 1.3)))
 zombie_size = zombie_img.get_rect().size
 zombie_width = zombie_size[0]
 zombie_height = zombie_size[1]
 
+heart_img = pygame.image.load("data/heart.png")
+heart_img = pygame.transform.scale(heart_img, (30, 30))
 
 player_pos = [screen_width / 2 - player_width / 2, screen_height / 2 - player_height / 2]
 player_speed = 5
-
 
 bullet_size = 5
 bullet_speed = 10
 bullets = []
 
-
 zombie_speed = 1
 zombies = []
 
-
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
-
+LIGHT_GRAY = (200, 200, 200)
+DARK_GRAY = (100, 100, 100)
 
 font = pygame.font.Font(None, 36)
 
-
 score = 0
-
+lives = 3
 
 last_shot_time = 0
-shoot_delay = 0.5  
+shoot_delay = 0.5
 
 def create_zombie():
     x_pos = random.choice([0, screen_width - zombie_width])
@@ -94,15 +89,38 @@ def check_collision(bullets, zombies):
                 score += 1
                 return True
 
+def check_player_collision(zombies, player_pos):
+    global lives
+    for zombie in zombies:
+        if (player_pos[0] < zombie[0] < player_pos[0] + player_width and
+            player_pos[1] < zombie[1] < player_pos[1] + player_height):
+            zombies.remove(zombie)
+            lives -= 1
+            if lives <= 0:
+                return True
+    return False
+
 def draw_score(screen, score):
     score_text = font.render(f"Score: {score}", True, (255, 255, 255))
     screen.blit(score_text, (10, 10))
+
+def draw_lives(screen, lives):
+    for i in range(lives):
+        screen.blit(heart_img, (10 + i * 40, 50))
+
+def game_over_screen():
+    screen.fill(DARK_GRAY)
+    game_over_text = font.render("GAME OVER", True, (255, 0, 0))
+    screen.blit(game_over_text, (screen_width // 2 - game_over_text.get_width() // 2, screen_height // 2 - game_over_text.get_height() // 2))
+    restart_text = font.render("Press R to Restart", True, (255, 255, 255))
+    screen.blit(restart_text, (screen_width // 2 - restart_text.get_width() // 2, screen_height // 2 + game_over_text.get_height()))
+    pygame.display.flip()
 
 running = True
 clock = pygame.time.Clock()
 
 while running:
-    screen.fill(BLACK)
+    screen.fill(LIGHT_GRAY)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -136,7 +154,7 @@ while running:
             bullets.remove(bullet)
 
     if score <= 10:
-        if random.randint(1,50) == 1:
+        if random.randint(1,40) == 1:
             create_zombie()
     elif score > 10 and score <= 20:
         if random.randint(1,30) == 1:
@@ -147,9 +165,26 @@ while running:
     elif score > 30:
         if random.randint(1,10) == 1:
             create_zombie()
-    
-    
+
     move_zombies(zombies, player_pos)
+
+    if check_player_collision(zombies, player_pos):
+        game_over_screen()
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                    score = 0
+                    lives = 3
+                    zombies = []
+                    bullets = []
+                    player_pos = [screen_width / 2 - player_width / 2, screen_height / 2 - player_height / 2]
+                    break
+            else:
+                continue
+            break
 
     check_collision(bullets, zombies)
 
@@ -157,6 +192,7 @@ while running:
     draw_bullets(screen, bullets)
     draw_zombies(screen, zombies)
     draw_score(screen, score)
+    draw_lives(screen, lives)
 
     pygame.display.flip()
     clock.tick(30)
